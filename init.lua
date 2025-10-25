@@ -6,9 +6,13 @@ local require = require
 local script = script
 
 -- In executor environment, these will be set by the loader
-if not script then
+-- Check if script exists (it won't in executor mode)
+local hasScript = script ~= nil
+
+if not hasScript then
+    -- Set up executor environment
     script = { Parent = { Parent = {} } }
-    require = _G.FiendRequire or require
+    -- require is already set by the bootstrapper's env
 end
 
 -- Try to detect if we're in Studio or Executor
@@ -17,11 +21,11 @@ local isStudio = game:GetService("RunService"):IsStudio()
 -- Load core dependencies based on environment
 local Theme, Binds, Config, Window, ThemeManager
 
-if isStudio then
+if isStudio or hasScript then
     -- Studio mode: use normal requires
     Theme  = require(script.Parent.lib.theme)
     Binds  = require(script.Parent.lib.binds)
-    Config = require(script.Parent.lib.config)
+    Config  = require(script.Parent.lib.config)
     Window = require(script.Parent.components.window)
     ThemeManager = require(script.Parent.lib.theme_manager)
 else
