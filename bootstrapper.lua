@@ -269,6 +269,8 @@ function Bootstrapper:LoadModules()
             local moduleCode = self:FetchModule(path)
             if moduleCode then
                 self._modules[moduleName] = moduleCode
+                -- Also store with original path for init.lua compatibility
+                self._modules[path] = moduleCode
                 loadedModules = loadedModules + 1
                 self:UpdateProgress(loadedModules, totalModules, filename)
                 
@@ -379,9 +381,14 @@ function Bootstrapper:LoadModules()
         -- Set global instance for element tracking
         _G.FiendInstance = mainModule
     else
-        local mainModuleCode = self._modules["init"]
+        -- Try both "init" and "init.lua" as keys
+        local mainModuleCode = self._modules["init"] or self._modules["init.lua"]
         if not mainModuleCode then
-            error("Failed to load Fiend init module")
+            local availableModules = {}
+            for k in pairs(self._modules) do
+                table.insert(availableModules, k)
+            end
+            error("Failed to load Fiend init module. Available modules: " .. table.concat(availableModules, ", "))
         end
         
         local env = setmetatable({}, {__index = _G})
@@ -400,6 +407,94 @@ function Bootstrapper:LoadModules()
         end
         
         mainModule = result
+        
+        -- Add methods that depend on loaded modules
+        function mainModule:CreateWindow(opts)
+            opts = opts or {}
+            
+            -- Handle theme name resolution
+            if opts.Theme and type(opts.Theme) == "string" then
+                if self.ThemeManager then
+                    local themeData = self.ThemeManager:GetTheme(opts.Theme)
+                    if themeData then
+                        opts.Theme = themeData
+                    else
+                        warn("[Fiend] Theme not found:", opts.Theme, "- using default theme")
+                        opts.Theme = nil
+                    end
+                else
+                    warn("[Fiend] ThemeManager not available - using default theme")
+                    opts.Theme = nil
+                end
+            end
+            
+            -- Get Window module
+            local Window = _G.FiendRequire("components/window")
+            local window = Window.new(opts)
+            
+            -- Initialize ThemeManager with the window
+            if self.ThemeManager then
+                self.ThemeManager:SetLibrary(self)
+            end
+            
+            return window
+        end
+        
+        function mainModule:CreateNotification()
+            local Notify = _G.FiendRequire("components/notify")
+            return Notify.new(self.Theme)
+        end
+        
+        function mainModule:CreateAnnouncement()
+            local Announce = _G.FiendRequire("components/announce")
+            return Announce.new(self.Theme)
+        end
+        
+        function mainModule:SetTheme(theme)
+            if type(theme) == "string" then
+                local themeData = self.ThemeManager:GetTheme(theme)
+                if themeData then
+                    self.Theme = themeData
+                    self:RefreshAllElements()
+                end
+            elseif type(theme) == "table" then
+                for k, v in pairs(theme) do
+                    self.Theme[k] = v
+                end
+                self:RefreshAllElements()
+            end
+        end
+        
+        function mainModule:RefreshAllElements()
+            if self._trackedElements then
+                for _, element in ipairs(self._trackedElements) do
+                    if element and element.RefreshTheme then
+                        element:RefreshTheme()
+                    end
+                end
+            end
+        end
+        
+        function mainModule:_trackElement(element)
+            if not self._trackedElements then
+                self._trackedElements = {}
+            end
+            table.insert(self._trackedElements, element)
+        end
+        
+        function mainModule:_untrackElement(element)
+            if self._trackedElements then
+                for i, e in ipairs(self._trackedElements) do
+                    if e == element then
+                        table.remove(self._trackedElements, i)
+                        break
+                    end
+                end
+            end
+        end
+        
+        -- Set global instance for element tracking
+        _G.FiendInstance = mainModule
     end
     
     -- Store in global for easy access
