@@ -31,11 +31,36 @@ local function createRequire()
             moduleCode = Modules[path:gsub("%.lua$", "")]
         end
         
-        if not moduleCode then
-            error("Module not found: " .. tostring(path))
+        -- Try with lib/ prefix
+        if not moduleCode and not path:match("^lib/") then
+            moduleCode = Modules["lib/" .. path:gsub("%.lua$", "")]
         end
         
-        -- Create environment
+        -- Try with components/ prefix
+        if not moduleCode and not path:match("^components/") then
+            moduleCode = Modules["components/" .. path:gsub("%.lua$", "")]
+        end
+        
+        if not moduleCode then
+            -- Debug: show what we're looking for
+            print("[DEBUG] Failed to find module:", path)
+            print("[DEBUG] Trying common variations...")
+            local variations = {path, path:gsub("%.lua$", ""), "lib/" .. path:gsub("%.lua$", "")}
+            for _, v in ipairs(variations) do
+                print("  Checking:", v, Modules[v] and "✓" or "✗")
+            end
+            
+            local available = {}
+            local count = 0
+            for k in pairs(Modules) do
+                table.insert(available, k)
+                count = count + 1
+                if count > 10 then break end
+            end
+            error("Module not found: " .. tostring(path) .. "\nFirst 10 available: " .. table.concat(available, ", "))
+        end
+        
+        -- Create environment with all globals
         local env = {}
         for k, v in pairs(_G) do
             env[k] = v
@@ -54,7 +79,11 @@ local function createRequire()
         setfenv(fn, env)
         local success, result = pcall(fn)
         if not success then
-            error("Failed to execute module: " .. tostring(result))
+            error("Failed to execute module " .. path .. ": " .. tostring(result))
+        end
+        
+        if not result then
+            error("Module " .. path .. " did not return a value")
         end
         
         Cache[path] = result
@@ -96,21 +125,50 @@ local moduleList = {
 for _, path in ipairs(moduleList) do
     local content = fetchModule(path)
     if content then
+        -- Store with multiple keys for flexible lookup
+        local nameWithoutExt = path:gsub("%.lua$", "")
+        local nameOnly = path:match("([^/]+)$"):gsub("%.lua$", "")
+        
         Modules[path] = content
-        Modules[path:gsub("%.lua$", "")] = content -- Also store without extension
+        Modules[nameWithoutExt] = content
+        Modules[nameOnly] = content
+        
+        -- For lib and components, add additional lookup keys
+        if path:match("^lib/") then
+            local libName = nameWithoutExt:gsub("^lib/", "")
+            Modules["lib/" .. libName] = content
+            Modules[libName] = content
+        elseif path:match("^components/") then
+            local compName = nameWithoutExt:gsub("^components/", "")
+            Modules["components/" .. compName] = content
+            Modules[compName] = content
+        end
     else
         warn("Failed to load:", path)
     end
 end
 
-print("✅ All modules loaded")
+print("✅ All modules loaded (" .. #moduleList .. " files)")
 
--- Set up global require
+-- Set up global require BEFORE we try to use it
 local require = createRequire()
-_G.require = require
+
+-- Create base environment for executing modules
+local baseEnv = {}
+for k, v in pairs(_G) do
+    baseEnv[k] = v
+end
+baseEnv.game = game
+baseEnv.workspace = workspace
+baseEnv.require = require
+
+-- Store the base environment
+_G.FiendBaseEnv = baseEnv
+
+print("✅ Module system initialized")
 
 -- Now execute init
-local Fiend = require("init.lua")
+local Fiend = require("init")
 
 print("✅ Fiend UI Library loaded successfully!")
 print("📊 Version:", Fiend.Version)

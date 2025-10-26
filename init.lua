@@ -21,7 +21,9 @@ local isStudio = game:GetService("RunService"):IsStudio()
 -- Load core dependencies based on environment
 local Theme, Binds, Config, Window, ThemeManager
 
-if isStudio or hasScript then
+-- Determine which require function to use
+local customRequire = require
+if isStudio and hasScript then
     -- Studio mode: use normal requires
     Theme  = require(script.Parent.lib.theme)
     Binds  = require(script.Parent.lib.binds)
@@ -29,12 +31,26 @@ if isStudio or hasScript then
     Window = require(script.Parent.components.window)
     ThemeManager = require(script.Parent.lib.theme_manager)
 else
-    -- Executor mode: use custom require
+    -- Executor mode: use custom require (passed in via environment)
     Theme  = require("lib/theme")
     Binds  = require("lib/binds")
     Config = require("lib/config")
     Window = require("components/window")
     ThemeManager = require("lib/theme_manager")
+end
+
+-- Safety check - make sure we got valid objects
+if not Theme then
+    error("[Fiend] Failed to load Theme module")
+end
+if not Binds then
+    error("[Fiend] Failed to load Binds module")
+end
+if not Config then
+    error("[Fiend] Failed to load Config module")
+end
+if not Window then
+    error("[Fiend] Failed to load Window module")
 end
 
 local Fiend = {
