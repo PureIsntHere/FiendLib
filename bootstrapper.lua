@@ -30,9 +30,18 @@ local function loadSplashComponent()
         -- In executor, load from remote
         local splashCode = Bootstrapper:FetchModule("components/splash.lua")
         if splashCode then
-            local env = setmetatable({}, {__index = _G})
-            env.require = Bootstrapper:CreateRequire()
+            local env = {}
+            
+            -- Copy globals
+            for k, v in pairs(_G) do
+                env[k] = v
+            end
+            
+            -- Make sure game and workspace are available
+            env.game = game
+            env.workspace = workspace
             env.script = { Parent = { Parent = {} } }
+            env.require = Bootstrapper:CreateRequire()
             
             local fn, err = loadstring(splashCode)
             if fn then
@@ -91,9 +100,19 @@ function Bootstrapper:CreateRequire()
             error("Module not found: " .. path .. "\nAvailable modules: " .. table.concat(availableModules, ", "))
         end
         
-        local env = setmetatable({}, {__index = _G})
-        env.require = self:CreateRequire()
+        -- Create environment with necessary globals
+        local env = {}
+        
+        -- Copy globals that modules need
+        for k, v in pairs(_G) do
+            env[k] = v
+        end
+        
+        -- Make sure game and workspace are available
+        env.game = game
+        env.workspace = workspace
         env.script = { Parent = { Parent = {} } }
+        env.require = self:CreateRequire()
         
         local fn, err = loadstring(moduleCode)
         if not fn then
@@ -442,9 +461,19 @@ function Bootstrapper:LoadModules()
             error("Failed to load Fiend init module. Available modules: " .. table.concat(availableModules, ", "))
         end
         
-        local env = setmetatable({}, {__index = _G})
-        env.require = self:CreateRequire()
+        -- Create environment with necessary globals
+        local env = {}
+        
+        -- Copy globals that modules need
+        for k, v in pairs(_G) do
+            env[k] = v
+        end
+        
+        -- Make sure game and other services are available
+        env.game = game
+        env.workspace = workspace
         env.script = { Parent = { Parent = {} } }
+        env.require = self:CreateRequire()
         
         local fn, err = loadstring(mainModuleCode)
         if not fn then
