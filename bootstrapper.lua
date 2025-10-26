@@ -58,9 +58,37 @@ function Bootstrapper:CreateRequire()
             return self._cache[path]
         end
         
+        -- Try to find the module with different path variations
         local moduleCode = self._modules[path]
+        
+        -- If not found, try alternative paths
         if not moduleCode then
-            error("Module not found: " .. path)
+            -- Try removing .lua extension
+            local pathNoExt = path:gsub("%.lua$", "")
+            moduleCode = self._modules[pathNoExt]
+            
+            -- Try adding .lua extension
+            if not moduleCode then
+                moduleCode = self._modules[path .. ".lua"]
+            end
+            
+            -- Try lib/ prefix
+            if not moduleCode and not path:match("^lib/") then
+                moduleCode = self._modules["lib/" .. path]
+            end
+            
+            -- Try components/ prefix
+            if not moduleCode and not path:match("^components/") then
+                moduleCode = self._modules["components/" .. path]
+            end
+        end
+        
+        if not moduleCode then
+            local availableModules = {}
+            for k in pairs(self._modules) do
+                table.insert(availableModules, k)
+            end
+            error("Module not found: " .. path .. "\nAvailable modules: " .. table.concat(availableModules, ", "))
         end
         
         local env = setmetatable({}, {__index = _G})
@@ -276,9 +304,29 @@ function Bootstrapper:LoadModules()
             
             local moduleCode = self:FetchModule(path)
             if moduleCode then
-                self._modules[moduleName] = moduleCode
-                -- Also store with original path for init.lua compatibility
-                self._modules[path] = moduleCode
+                -- Store with multiple keys for flexible lookup
+                self._modules[moduleName] = moduleCode        -- "init"
+                self._modules[path] = moduleCode              -- "init.lua"
+                
+                -- Also store without extension and with path variations
+                local nameOnly = path:match("([^/]+)$")       -- Just filename
+                self._modules[nameOnly] = moduleCode           -- Just "init"
+                
+                -- For components and lib files, store accessible keys
+                if path:match("^lib/") then
+                    local libName = path:gsub("^lib/", "")
+                    local libNameNoExt = libName:gsub("%.lua$", "")
+                    self._modules[libNameNoExt] = moduleCode
+                    self._modules["lib/" .. libNameNoExt] = moduleCode
+                end
+                
+                if path:match("^components/") then
+                    local compName = path:gsub("^components/", "")
+                    local compNameNoExt = compName:gsub("%.lua$", "")
+                    self._modules[compNameNoExt] = moduleCode
+                    self._modules["components/" .. compNameNoExt] = moduleCode
+                end
+                
                 loadedModules = loadedModules + 1
                 self:UpdateProgress(loadedModules, totalModules, filename)
                 
