@@ -14,29 +14,42 @@ print("🚀 Starting Fiend UI Library Executor Test...")
 
 -- Load the library from GitHub
 local function loadLibrary()
-    -- Method 1: Try loading from GitHub
+    -- Method 1: Try loading standalone (Linoria-style)
     local success, result = pcall(function()
-        return loadstring(game:HttpGet("https://raw.githubusercontent.com/PureIsntHere/FiendLib/main/bootstrapper.lua"))()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/PureIsntHere/FiendLib/main/Fiend_Standalone.lua"))()
     end)
     
     if success and result then
-        print("✅ Loaded from GitHub")
-        return result:Bootstrap()
+        print("✅ Loaded from GitHub (Standalone)")
+        return result
     else
-        print("⚠️ GitHub loading failed:", result)
+        print("⚠️ Standalone loading failed:", result)
     end
     
-    -- Method 2: Try loading from ReplicatedStorage (fallback for executors that do have it)
+    -- Method 2: Try loading via bootstrapper
     local success2, result2 = pcall(function()
-        local Bootstrapper = require(game:GetService("ReplicatedStorage").Fiend.bootstrapper)
+        local Bootstrapper = loadstring(game:HttpGet("https://raw.githubusercontent.com/PureIsntHere/FiendLib/main/bootstrapper.lua"))()
         return Bootstrapper:Bootstrap()
     end)
     
     if success2 and result2 then
-        print("✅ Loaded from ReplicatedStorage")
+        print("✅ Loaded via Bootstrapper")
         return result2
     else
-        print("⚠️ ReplicatedStorage loading failed:", result2)
+        print("⚠️ Bootstrapper loading failed:", result2)
+    end
+    
+    -- Method 3: Try loading from ReplicatedStorage (fallback for executors that do have it)
+    local success3, result3 = pcall(function()
+        local Bootstrapper = require(game:GetService("ReplicatedStorage").Fiend.bootstrapper)
+        return Bootstrapper:Bootstrap()
+    end)
+    
+    if success3 and result3 then
+        print("✅ Loaded from ReplicatedStorage")
+        return result3
+    else
+        print("⚠️ ReplicatedStorage loading failed:", result3)
     end
     
     -- Method 3: Try loading from a pastebin or other source

@@ -81,7 +81,24 @@ end
 
 -- Optional: apply a different theme object at runtime
 function Fiend:SetTheme(newTheme)
-    if type(newTheme) == "table" then
+    if type(newTheme) == "string" then
+        -- Theme name provided, use ThemeManager
+        if self.ThemeManager then
+            local themeData = self.ThemeManager:GetTheme(newTheme)
+            if themeData then
+                for k, v in pairs(themeData) do
+                    self.Theme[k] = v
+                end
+                self:RefreshAllElements()
+                print("[Fiend] Applied theme:", newTheme)
+            else
+                warn("[Fiend] Theme not found:", newTheme)
+            end
+        else
+            warn("[Fiend] ThemeManager not available")
+        end
+    elseif type(newTheme) == "table" then
+        -- Theme table provided
         for k, v in pairs(newTheme) do
             self.Theme[k] = v
         end
@@ -120,6 +137,28 @@ function Fiend:_untrackElement(element)
             end
         end
     end
+end
+
+-- Create notification system
+function Fiend:CreateNotification()
+    local Notify
+    if hasScript then
+        Notify = require(script.Parent.components.notify)
+    else
+        Notify = require("components/notify")
+    end
+    return Notify.new(self.Theme)
+end
+
+-- Create announcement system
+function Fiend:CreateAnnouncement()
+    local Announce
+    if hasScript then
+        Announce = require(script.Parent.components.announce)
+    else
+        Announce = require("components/announce")
+    end
+    return Announce.new(self.Theme)
 end
 
 -- Convenience passthroughs for serialization
