@@ -1,4 +1,4 @@
-local VERSION = "2.6.20"
+local VERSION = "2.6.21"
 local repoBase = "https://raw.githubusercontent.com/PureIsntHere/FiendLib/main/"
 
 print(string.format("[Fiend] Loading v%s...", VERSION))
