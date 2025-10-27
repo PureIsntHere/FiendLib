@@ -236,8 +236,9 @@ function Tab.new(window, name, icon)
 			print(string.format("[Group Layout] Group %d: col=%d, row=%d, pos=(%.2f,%.2f), size=(%.2f,%.2f)", 
 				i, col, row, x, y, cellWidth, cellHeight))
 			
-			-- Clear LayoutOrder and disable AutomaticSize for absolute positioning
-			group.Instance.LayoutOrder = nil
+            -- Reset LayoutOrder and disable AutomaticSize for absolute positioning
+            -- Some engines disallow assigning nil to numeric properties
+            group.Instance.LayoutOrder = 0
 			group.Instance.AutomaticSize = Enum.AutomaticSize.None
 			
 			-- Set size and position using scale values
